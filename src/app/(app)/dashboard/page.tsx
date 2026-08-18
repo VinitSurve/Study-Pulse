@@ -7,12 +7,18 @@ import { useSessions, getTotalStudySeconds, getSubjectBreakdown } from '@/hooks/
 import { StartSession } from '@/components/timer/start-session';
 import { formatDuration, formatTimerDisplay, formatTime, getGreeting, getLocalDayStart, getLocalDayEnd } from '@/lib/utils';
 
+import { StartProblem } from '@/components/timer/start-problem';
+import { useProblemTimerContext } from '@/components/providers/problem-timer-provider';
+
 export default function DashboardPage() {
   const [showStartSession, setShowStartSession] = useState(false);
+  const [showStartProblem, setShowStartProblem] = useState(false);
   const { timerState, displaySeconds, isRunning, isPaused } = useTimerContext();
+  const { timerState: problemTimerState } = useProblemTimerContext();
   const { sessions, fetchSessions } = useSessions();
   const router = useRouter();
   const hasActiveTimer = timerState && (isRunning || isPaused);
+  const hasActiveProblem = problemTimerState !== null;
 
   // Fetch today's sessions
   useEffect(() => {
@@ -68,16 +74,28 @@ export default function DashboardPage() {
         </button>
       )}
 
-      {/* Start Study button */}
-      {!hasActiveTimer && (
-        <button
-          onClick={() => setShowStartSession(true)}
-          className="w-full py-4 bg-accent text-bg font-semibold text-lg rounded-2xl hover:bg-amber-400 active:scale-[0.97] transition-all mb-8 shadow-lg shadow-accent/10"
-          id="start-study-btn"
-        >
-          Start Study
-        </button>
-      )}
+      {/* Start Actions */}
+      <div className="grid grid-cols-2 gap-3 mb-8">
+        {!hasActiveTimer && (
+          <button
+            onClick={() => setShowStartSession(true)}
+            className="w-full py-3.5 bg-accent text-bg font-semibold text-[15px] rounded-2xl hover:bg-amber-400 active:scale-[0.97] transition-all shadow-lg shadow-accent/10"
+            id="start-study-btn"
+          >
+            Start Study
+          </button>
+        )}
+        
+        {/* We can span the Problem button full width if there's an active timer, otherwise half width */}
+        {!hasActiveProblem && (
+          <button
+            onClick={() => setShowStartProblem(true)}
+            className={`py-3.5 bg-bg-elevated border border-accent/40 text-accent font-semibold text-[15px] rounded-2xl hover:bg-accent/10 active:scale-[0.97] transition-all shadow-sm ${hasActiveTimer ? 'col-span-2 w-full' : 'w-full'}`}
+          >
+            Start Problem
+          </button>
+        )}
+      </div>
 
       {/* Today's subject breakdown */}
       {subjectBreakdown.length > 0 && (
@@ -130,6 +148,11 @@ export default function DashboardPage() {
       {/* Start Session Modal */}
       {showStartSession && (
         <StartSession onClose={() => setShowStartSession(false)} />
+      )}
+
+      {/* Start Problem Modal */}
+      {showStartProblem && (
+        <StartProblem onClose={() => setShowStartProblem(false)} />
       )}
     </div>
   );

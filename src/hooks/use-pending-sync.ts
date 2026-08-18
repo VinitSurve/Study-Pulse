@@ -2,23 +2,26 @@
 
 import { useEffect, useCallback } from 'react';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { getPendingSessions, removePendingSession } from '@/lib/timer/pending';
+import { getPendingSessions, removePendingSession, getPendingAttempts, removePendingAttempt } from '@/lib/timer/pending';
 
 /**
- * Hook that syncs pending offline sessions to Supabase.
+ * Hook that syncs pending offline sessions and attempts to Supabase.
  * Runs on mount and when the app regains connectivity.
- * Uses the session UUID as an idempotency key (upsert on conflict).
+ * Uses the session/attempt UUID as an idempotency key (upsert on conflict).
  */
 export function usePendingSync() {
   const syncPending = useCallback(async () => {
-    const pending = getPendingSessions();
-    if (pending.length === 0) return;
+    const pendingSessions = getPendingSessions();
+    const pendingAttempts = getPendingAttempts();
+    
+    if (pendingSessions.length === 0 && pendingAttempts.length === 0) return;
 
     const supabase = getSupabaseBrowserClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    for (const session of pending) {
+    // 1. Sync Study Sessions
+    for (const session of pendingSessions) {
       try {
         const { error } = await supabase.from('study_sessions').upsert({
           id: session.id,
@@ -34,6 +37,62 @@ export function usePendingSync() {
 
         if (!error) {
           removePendingSession(session.id);
+        }
+      } catch {
+        // Will retry next time
+      }
+    }
+
+    // 2. Sync Problem Attempts
+    for (const attempt of pendingAttempts) {
+      try {
+        // Step A: Resolve Canonical Problem
+        const { data: problemData, error: problemError } = await supabase
+          .from('problems')
+          .upsert({
+            user_id: user.id,
+            title: attempt.problem_title,
+            platform: attempt.problem_platform,
+            difficulty: attempt.problem_difficulty,
+            topic: attempt.problem_topic || null,
+          }, { 
+            onConflict: 'user_id, title_normalized, platform_normalized' 
+          })
+          .select('id')
+          .single();
+
+        if (problemError || !problemData) {
+          console.error('Failed to resolve canonical problem:', problemError);
+          continue; // Keep pending item, retry later
+        }
+
+        const canonicalProblemId = problemData.id;
+
+        // Step B: Upsert Attempt
+        const { error: attemptError } = await supabase.from('problem_attempts').upsert({
+          id: attempt.id,
+          user_id: user.id,
+          problem_id: canonicalProblemId,
+          study_session_id: attempt.study_session_id,
+          started_at: attempt.started_at,
+          ended_at: attempt.ended_at,
+          duration_seconds: attempt.duration_seconds,
+          result: attempt.result,
+          attempt_number: attempt.attempt_number,
+          test_cases_passed: attempt.test_cases_passed,
+          test_cases_total: attempt.test_cases_total,
+          language: attempt.language,
+          hint_used: attempt.hint_used,
+          editorial_used: attempt.editorial_used,
+          time_complexity: attempt.time_complexity,
+          space_complexity: attempt.space_complexity,
+          notes: attempt.notes,
+        }, { onConflict: 'id' });
+
+        if (!attemptError) {
+          removePendingAttempt(attempt.id);
+        } else {
+          console.error('Failed to sync problem attempt:', attemptError);
         }
       } catch {
         // Will retry next time

@@ -66,3 +66,51 @@ export function clearPendingSessions(): void {
     // fail silently
   }
 }
+
+// ─── PENDING PROBLEM ATTEMPTS ──────────────────────────────────────
+
+export const PENDING_ATTEMPTS_KEY = 'studypulse_pending_attempts';
+
+import type { PendingProblemAttempt } from '@/types';
+
+export function getPendingAttempts(): PendingProblemAttempt[] {
+  try {
+    const raw = localStorage.getItem(PENDING_ATTEMPTS_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as PendingProblemAttempt[];
+  } catch {
+    return [];
+  }
+}
+
+export function addPendingAttempt(attempt: PendingProblemAttempt): void {
+  try {
+    const pending = getPendingAttempts();
+    if (pending.some(a => a.id === attempt.id)) return;
+    pending.push(attempt);
+    localStorage.setItem(PENDING_ATTEMPTS_KEY, JSON.stringify(pending));
+  } catch {
+    // fail silently
+  }
+}
+
+export function removePendingAttempt(attemptId: string): void {
+  try {
+    const pending = getPendingAttempts().filter(a => a.id !== attemptId);
+    if (pending.length === 0) {
+      localStorage.removeItem(PENDING_ATTEMPTS_KEY);
+    } else {
+      localStorage.setItem(PENDING_ATTEMPTS_KEY, JSON.stringify(pending));
+    }
+  } catch {
+    // fail silently
+  }
+}
+
+export function clearPendingAttempts(): void {
+  try {
+    localStorage.removeItem(PENDING_ATTEMPTS_KEY);
+  } catch {
+    // fail silently
+  }
+}

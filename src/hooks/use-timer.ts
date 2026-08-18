@@ -192,6 +192,20 @@ export function useTimer(): UseTimerReturn {
 
   const pause = useCallback(() => {
     if (!timerState) return;
+    
+    // CASE B: Study Timer paused -> automatically pause Problem Timer
+    import('@/hooks/use-problem-timer').then(({ loadProblemTimerState, saveProblemTimerState }) => {
+      const problemState = loadProblemTimerState();
+      if (problemState && problemState.status === 'running') {
+        // use engine's pauseTimer and coerce types
+        const pausedProblem = pauseTimer(problemState as any) as any;
+        saveProblemTimerState(pausedProblem);
+        
+        // Dispatch a custom event so the Problem Timer UI can re-render if it's active
+        window.dispatchEvent(new Event('problem_timer_updated'));
+      }
+    });
+
     const state = pauseTimer(timerState);
     setTimerState(state);
     saveTimerState(state);
@@ -199,6 +213,7 @@ export function useTimer(): UseTimerReturn {
 
   const doResume = useCallback(() => {
     if (!timerState) return;
+    // CASE C: Study Timer resumes -> Problem remains paused (do nothing here)
     const state = resumeTimer(timerState);
     setTimerState(state);
     saveTimerState(state);
@@ -206,6 +221,15 @@ export function useTimer(): UseTimerReturn {
 
   const doStop = useCallback(async () => {
     if (!timerState) return;
+    
+    // CASE E: User attempts to stop Study while Problem is active -> block the action
+    const { loadProblemTimerState } = await import('@/hooks/use-problem-timer');
+    const problemState = loadProblemTimerState();
+    if (problemState && (problemState.status === 'running' || problemState.status === 'paused')) {
+      alert("You have an active problem attempt. Finish or abandon it first.");
+      return;
+    }
+
     const completed = stopTimer(timerState);
     setTimerState(completed);
     saveTimerState(completed);

@@ -1,12 +1,16 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTimerContext } from '@/components/providers/timer-provider';
+import { useProblemTimerContext } from '@/components/providers/problem-timer-provider';
 import { formatTimerDisplay } from '@/lib/utils';
+import { StartProblem } from '@/components/timer/start-problem';
 
 export default function TimerPage() {
+  const [showStartProblem, setShowStartProblem] = useState(false);
   const router = useRouter();
+  const { timerState: problemTimerState } = useProblemTimerContext();
   const {
     timerState,
     displaySeconds,
@@ -133,6 +137,16 @@ export default function TimerPage() {
         </div>
       )}
 
+      {/* Start Problem Button (only if no active problem) */}
+      {!problemTimerState && (
+        <button
+          onClick={() => setShowStartProblem(true)}
+          className="mt-12 py-3 px-6 bg-bg-surface border border-accent/30 text-accent font-medium text-sm rounded-xl hover:bg-accent/10 active:scale-95 transition-all"
+        >
+          Start Problem
+        </button>
+      )}
+
       {/* Saving indicator */}
       {isSaving && (
         <div className="mt-6 text-sm text-text-muted">Saving session…</div>
@@ -141,6 +155,11 @@ export default function TimerPage() {
       {/* Save error */}
       {saveError && (
         <div className="mt-6 text-sm text-accent text-center px-4">{saveError}</div>
+      )}
+
+      {/* Start Problem Modal */}
+      {showStartProblem && (
+        <StartProblem onClose={() => setShowStartProblem(false)} />
       )}
     </div>
   );

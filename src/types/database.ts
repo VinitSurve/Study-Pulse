@@ -97,6 +97,126 @@ export interface Database {
           }
         ];
       };
+      problems: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          platform: string;
+          difficulty: string;
+          topic: string | null;
+          url: string | null;
+          title_normalized: string | null;
+          platform_normalized: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          platform: string;
+          difficulty: string;
+          topic?: string | null;
+          url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          title?: string;
+          platform?: string;
+          difficulty?: string;
+          topic?: string | null;
+          url?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'problems_user_id_fkey';
+            columns: ['user_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
+      problem_attempts: {
+        Row: {
+          id: string;
+          user_id: string;
+          problem_id: string;
+          study_session_id: string | null;
+          started_at: string;
+          ended_at: string;
+          duration_seconds: number;
+          result: string;
+          attempt_number: number | null;
+          test_cases_passed: number | null;
+          test_cases_total: number | null;
+          language: string | null;
+          hint_used: boolean | null;
+          editorial_used: boolean | null;
+          time_complexity: string | null;
+          space_complexity: string | null;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          problem_id: string;
+          study_session_id?: string | null;
+          started_at: string;
+          ended_at: string;
+          duration_seconds: number;
+          result: string;
+          attempt_number?: number | null;
+          test_cases_passed?: number | null;
+          test_cases_total?: number | null;
+          language?: string | null;
+          hint_used?: boolean | null;
+          editorial_used?: boolean | null;
+          time_complexity?: string | null;
+          space_complexity?: string | null;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          study_session_id?: string | null;
+          started_at?: string;
+          ended_at?: string;
+          duration_seconds?: number;
+          result?: string;
+          attempt_number?: number | null;
+          test_cases_passed?: number | null;
+          test_cases_total?: number | null;
+          language?: string | null;
+          hint_used?: boolean | null;
+          editorial_used?: boolean | null;
+          time_complexity?: string | null;
+          space_complexity?: string | null;
+          notes?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'problem_attempts_user_id_fkey';
+            columns: ['user_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'problem_attempts_problem_id_fkey';
+            columns: ['problem_id'];
+            referencedRelation: 'problems';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'problem_attempts_study_session_id_fkey';
+            columns: ['study_session_id'];
+            referencedRelation: 'study_sessions';
+            referencedColumns: ['id'];
+          }
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -108,6 +228,8 @@ export interface Database {
 export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type Subject = Database['public']['Tables']['subjects']['Row'];
 export type StudySession = Database['public']['Tables']['study_sessions']['Row'];
+export type Problem = Database['public']['Tables']['problems']['Row'];
+export type ProblemAttempt = Database['public']['Tables']['problem_attempts']['Row'];
 
 // Join type for display
 export interface StudySessionWithSubject extends StudySession {

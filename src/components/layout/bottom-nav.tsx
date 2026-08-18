@@ -52,24 +52,54 @@ const NAV_ITEMS = [
   },
 ];
 
+import { useProblemTimerContext } from '@/components/providers/problem-timer-provider';
+
 export function BottomNav() {
   const pathname = usePathname();
   const { timerState, displaySeconds, isRunning, isPaused } = useTimerContext();
+  const { 
+    timerState: problemState, 
+    displaySeconds: problemSeconds, 
+    isRunning: isProblemRunning, 
+    isPaused: isProblemPaused 
+  } = useProblemTimerContext();
+
   const hasActiveTimer = timerState && (isRunning || isPaused);
+  const hasActiveProblem = problemState && (isProblemRunning || isProblemPaused);
 
   return (
     <>
-      {/* Active timer mini bar */}
+      {/* Active Problem Timer mini bar (displays above Study Timer if both exist) */}
+      {hasActiveProblem && pathname !== '/timer' && (
+        <button
+          onClick={() => window.dispatchEvent(new Event('open_problem_timer'))}
+          className={`fixed left-3 right-3 z-40 bg-bg-surface border border-accent/30 rounded-2xl px-4 py-3 flex items-center justify-between active:scale-[0.98] transition-all safe-bottom ${
+            hasActiveTimer ? 'bottom-[126px]' : 'bottom-[68px]'
+          }`}
+        >
+          <div className="flex items-center gap-3 truncate pr-4">
+            <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${isProblemRunning ? 'bg-accent animate-pulse' : 'bg-text-muted'}`} />
+            <span className="text-sm font-medium text-text-primary truncate">
+              {problemState.problemTitle}
+            </span>
+          </div>
+          <span className="shrink-0 font-mono text-sm font-semibold text-accent tabular-nums">
+            {formatTimerDisplay(problemSeconds)}
+          </span>
+        </button>
+      )}
+
+      {/* Active Study Timer mini bar */}
       {hasActiveTimer && pathname !== '/timer' && (
         <Link
           href="/timer"
           className="fixed bottom-[68px] left-3 right-3 z-40 bg-bg-elevated border border-border rounded-2xl px-4 py-3 flex items-center justify-between active:scale-[0.98] transition-transform safe-bottom"
         >
-          <div className="flex items-center gap-3">
-            <div className={`w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-accent animate-pulse' : 'bg-text-muted'}`} />
-            <span className="text-sm font-medium text-text-primary">{timerState.subjectName}</span>
+          <div className="flex items-center gap-3 truncate pr-4">
+            <div className={`shrink-0 w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-accent animate-pulse' : 'bg-text-muted'}`} />
+            <span className="text-sm font-medium text-text-primary truncate">{timerState.subjectName}</span>
           </div>
-          <span className="font-mono text-sm font-semibold text-accent tabular-nums">
+          <span className="shrink-0 font-mono text-sm font-semibold text-accent tabular-nums">
             {formatTimerDisplay(displaySeconds)}
           </span>
         </Link>

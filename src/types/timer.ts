@@ -33,3 +33,44 @@ export interface PendingSession {
   planned_duration_seconds: number | null;
   status: 'completed' | 'cancelled';
 }
+
+// Problem Timer specific state
+export interface ProblemTimerState {
+  id: string;             // attempt id
+  problemTitle: string;   // Snapshot for UI/Sync
+  platform: string;       // Snapshot for UI/Sync
+  difficulty: string;     // Snapshot for UI/Sync
+  topic?: string;
+  studySessionId: string | null;
+  status: TimerStatus;
+  startedAt: number;
+  pausedAt: number | null;
+  totalPausedMs: number;
+  pauseHistory: PauseRecord[];
+}
+
+export interface PendingProblemAttempt {
+  id: string; // attempt id
+  user_id: string;
+  // Problem snapshot for upsert
+  problem_title: string;
+  problem_platform: string;
+  problem_difficulty: string;
+  problem_topic?: string;
+  // Attempt data
+  study_session_id: string | null;
+  started_at: string;
+  ended_at: string;
+  duration_seconds: number;
+  result: 'solved' | 'failed' | 'abandoned';
+  // Metrics
+  attempt_number?: number;
+  test_cases_passed?: number | null;
+  test_cases_total?: number | null;
+  language?: string | null;
+  hint_used?: boolean;
+  editorial_used?: boolean;
+  time_complexity?: string | null;
+  space_complexity?: string | null;
+  notes?: string | null;
+}

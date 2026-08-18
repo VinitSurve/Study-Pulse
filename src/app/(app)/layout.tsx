@@ -1,6 +1,7 @@
 'use client';
 
 import { TimerProvider } from '@/components/providers/timer-provider';
+import { ProblemTimerProvider } from '@/components/providers/problem-timer-provider';
 import { BottomNav } from '@/components/layout/bottom-nav';
 import { usePendingSync } from '@/hooks/use-pending-sync';
 
@@ -18,10 +19,15 @@ function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+import { ProblemTimerOverlay } from '@/components/timer/problem-timer-overlay';
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <TimerProvider>
-      <AppShell>{children}</AppShell>
+      <ProblemTimerProvider>
+        <AppShell>{children}</AppShell>
+        <ProblemTimerOverlay />
+      </ProblemTimerProvider>
     </TimerProvider>
   );
 }
