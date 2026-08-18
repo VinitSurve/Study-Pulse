@@ -141,9 +141,13 @@ export function useTimer(): UseTimerReturn {
 
   // 4. Load persisted timer state on mount safely
   useEffect(() => {
+    let mounted = true;
+
     // Wrap in Promise.resolve().then() to avoid synchronous state updates
     // during the effect execution, which triggers react-hooks/set-state-in-effect
     Promise.resolve().then(() => {
+      if (!mounted) return;
+
       const saved = loadTimerState();
       if (saved) {
         // Check if a timed session has expired while the app was closed
@@ -157,6 +161,10 @@ export function useTimer(): UseTimerReturn {
         }
       }
     });
+
+    return () => {
+      mounted = false;
+    };
   }, [saveSessionToSupabase]);
 
   // 5. Manage the display interval based on timer status
