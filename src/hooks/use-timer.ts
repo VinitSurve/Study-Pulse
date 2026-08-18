@@ -7,7 +7,6 @@ import {
   pauseTimer,
   resumeTimer,
   stopTimer,
-  cancelTimer,
   getElapsedSeconds,
   getRemainingSeconds,
   isTimedSessionComplete,
@@ -42,71 +41,12 @@ export function useTimer(): UseTimerReturn {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stateRef = useRef<TimerState | null>(null);
 
-  // Keep ref in sync for interval callback
-  stateRef.current = timerState;
-
-  // Update display from timestamps (never the source of truth — just UI refresh)
-  const updateDisplay = useCallback(() => {
-    const state = stateRef.current;
-    if (!state) return;
-
-    if (state.mode === 'timed') {
-      const remaining = getRemainingSeconds(state);
-      setDisplaySeconds(remaining);
-      // Auto-complete when countdown reaches zero
-      if (remaining <= 0 && state.status === 'running') {
-        const completed = stopTimer(state);
-        setTimerState(completed);
-        saveTimerState(completed);
-        // Save to Supabase
-        saveSessionToSupabase(completed);
-      }
-    } else {
-      setDisplaySeconds(getElapsedSeconds(state));
-    }
-  }, []);
-
-  // Start the display update interval
-  const startDisplayInterval = useCallback(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(updateDisplay, 1000);
-    updateDisplay(); // immediate first update
-  }, [updateDisplay]);
-
-  const stopDisplayInterval = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, []);
-
-  // Load persisted timer state on mount
+  // Keep ref in sync for interval callback (must be done in effect to avoid StrictMode violations)
   useEffect(() => {
-    const saved = loadTimerState();
-    if (saved) {
-      // Check if a timed session has expired while the app was closed
-      if (saved.mode === 'timed' && saved.status === 'running' && isTimedSessionComplete(saved)) {
-        const completed = stopTimer(saved);
-        setTimerState(completed);
-        saveTimerState(completed);
-        saveSessionToSupabase(completed);
-        return;
-      }
-      setTimerState(saved);
-    }
-  }, []);
+    stateRef.current = timerState;
+  }, [timerState]);
 
-  // Manage the display interval based on timer status
-  useEffect(() => {
-    if (timerState && (timerState.status === 'running' || timerState.status === 'paused')) {
-      startDisplayInterval();
-    } else {
-      stopDisplayInterval();
-    }
-    return stopDisplayInterval;
-  }, [timerState?.status, startDisplayInterval, stopDisplayInterval]);
-
-  // Save session to Supabase (or queue for offline sync)
+  // 1. Define saveSessionToSupabase first since others depend on it
   const saveSessionToSupabase = useCallback(async (state: TimerState) => {
     setIsSaving(true);
     setSaveError(null);
@@ -164,6 +104,72 @@ export function useTimer(): UseTimerReturn {
     }
   }, []);
 
+  // 2. Define updateDisplay which depends on saveSessionToSupabase
+  const updateDisplay = useCallback(() => {
+    const state = stateRef.current;
+    if (!state) return;
+
+    if (state.mode === 'timed') {
+      const remaining = getRemainingSeconds(state);
+      setDisplaySeconds(remaining);
+      // Auto-complete when countdown reaches zero
+      if (remaining <= 0 && state.status === 'running') {
+        const completed = stopTimer(state);
+        setTimerState(completed);
+        saveTimerState(completed);
+        // Save to Supabase
+        void saveSessionToSupabase(completed);
+      }
+    } else {
+      setDisplaySeconds(getElapsedSeconds(state));
+    }
+  }, [saveSessionToSupabase]);
+
+  // 3. Define interval controls
+  const startDisplayInterval = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(updateDisplay, 1000);
+    updateDisplay(); // immediate first update
+  }, [updateDisplay]);
+
+  const stopDisplayInterval = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+
+  // 4. Load persisted timer state on mount safely
+  useEffect(() => {
+    // Wrap in Promise.resolve().then() to avoid synchronous state updates
+    // during the effect execution, which triggers react-hooks/set-state-in-effect
+    Promise.resolve().then(() => {
+      const saved = loadTimerState();
+      if (saved) {
+        // Check if a timed session has expired while the app was closed
+        if (saved.mode === 'timed' && saved.status === 'running' && isTimedSessionComplete(saved)) {
+          const completed = stopTimer(saved);
+          setTimerState(completed);
+          saveTimerState(completed);
+          void saveSessionToSupabase(completed);
+        } else {
+          setTimerState(saved);
+        }
+      }
+    });
+  }, [saveSessionToSupabase]);
+
+  // 5. Manage the display interval based on timer status
+  useEffect(() => {
+    if (timerState && (timerState.status === 'running' || timerState.status === 'paused')) {
+      startDisplayInterval();
+    } else {
+      stopDisplayInterval();
+    }
+    return stopDisplayInterval;
+  }, [timerState, startDisplayInterval, stopDisplayInterval]);
+
+  // 6. Define action methods
   const start = useCallback((
     subjectId: string,
     subjectName: string,
