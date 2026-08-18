@@ -47,26 +47,53 @@ export function usePendingSync() {
     for (const attempt of pendingAttempts) {
       try {
         // Step A: Resolve Canonical Problem
-        const { data: problemData, error: problemError } = await supabase
+        let canonicalProblemId = null;
+        const { data: existing } = await supabase
           .from('problems')
-          .upsert({
-            user_id: user.id,
-            title: attempt.problem_title,
-            platform: attempt.problem_platform,
-            difficulty: attempt.problem_difficulty,
-            topic: attempt.problem_topic || null,
-          }, { 
-            onConflict: 'user_id, title_normalized, platform_normalized' 
-          })
           .select('id')
-          .single();
+          .eq('user_id', user.id)
+          .eq('title_normalized', attempt.problem_title.toLowerCase().trim())
+          .eq('platform_normalized', attempt.problem_platform.toLowerCase().trim())
+          .maybeSingle();
 
-        if (problemError || !problemData) {
-          console.error('Failed to resolve canonical problem:', problemError);
-          continue; // Keep pending item, retry later
+        if (existing) {
+          canonicalProblemId = existing.id;
+        } else {
+          const { data: newProb, error: insertError } = await supabase
+            .from('problems')
+            .insert({
+              user_id: user.id,
+              title: attempt.problem_title,
+              platform: attempt.problem_platform,
+              difficulty: attempt.problem_difficulty,
+              topic: attempt.problem_topic || null,
+            })
+            .select('id')
+            .maybeSingle();
+
+          if (insertError) {
+            if (insertError.code === '23505') { // Unique violation
+              const { data: retry } = await supabase
+                .from('problems')
+                .select('id')
+                .eq('user_id', user.id)
+                .eq('title_normalized', attempt.problem_title.toLowerCase().trim())
+                .eq('platform_normalized', attempt.problem_platform.toLowerCase().trim())
+                .single();
+              canonicalProblemId = retry?.id;
+            } else {
+              console.error('Failed to insert canonical problem:', insertError?.message || JSON.stringify(insertError));
+              continue;
+            }
+          } else if (newProb) {
+            canonicalProblemId = newProb.id;
+          }
         }
 
-        const canonicalProblemId = problemData.id;
+        if (!canonicalProblemId) {
+          console.error('Could not resolve canonical problem ID');
+          continue; // Keep pending item, retry later
+        }
 
         // Step B: Upsert Attempt
         const { error: attemptError } = await supabase.from('problem_attempts').upsert({
@@ -92,7 +119,7 @@ export function usePendingSync() {
         if (!attemptError) {
           removePendingAttempt(attempt.id);
         } else {
-          console.error('Failed to sync problem attempt:', attemptError);
+          console.error('Failed to sync problem attempt:', attemptError?.message || JSON.stringify(attemptError));
         }
       } catch {
         // Will retry next time

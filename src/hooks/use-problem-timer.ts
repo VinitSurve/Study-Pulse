@@ -8,6 +8,7 @@ import {
   stopTimer,
   getElapsedSeconds,
   getFinalDurationSeconds,
+  loadTimerState,
 } from '@/lib/timer/engine';
 import { addPendingAttempt, getPendingAttempts } from '@/lib/timer/pending';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
@@ -169,28 +170,71 @@ export function useProblemTimer(): UseProblemTimerReturn {
     try {
       if (!user) throw new Error('Not authenticated');
 
-      // 1. Ensure canonical problem
-      const { data: problemData, error: problemError } = await supabase
-        .from('problems')
-        .upsert({
-          user_id: user.id,
-          title: attemptData.problem_title,
-          platform: attemptData.problem_platform,
-          difficulty: attemptData.problem_difficulty,
-          topic: attemptData.problem_topic || null,
-        }, { 
-          onConflict: 'user_id, title_normalized, platform_normalized' 
-        })
-        .select('id')
-        .single();
+      // 0. Check if this attempt belongs to an active, unsaved study session
+      if (attemptData.study_session_id) {
+        const activeStudy = loadTimerState();
+        if (activeStudy && activeStudy.id === attemptData.study_session_id) {
+          // Study session is still active and hasn't been saved to Supabase.
+          // Queue the attempt silently.
+          addPendingAttempt(attemptData);
+          clearProblemTimerState();
+          setTimerState(null);
+          setDisplaySeconds(0);
+          setIsSaving(false);
+          return;
+        }
+      }
 
-      if (problemError || !problemData) throw problemError;
+      // 1. Ensure canonical problem
+      let problemId = null;
+      const { data: existing } = await supabase
+        .from('problems')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('title_normalized', attemptData.problem_title.toLowerCase().trim())
+        .eq('platform_normalized', attemptData.problem_platform.toLowerCase().trim())
+        .maybeSingle();
+
+      if (existing) {
+        problemId = existing.id;
+      } else {
+        const { data: newProb, error: insertError } = await supabase
+          .from('problems')
+          .insert({
+            user_id: user.id,
+            title: attemptData.problem_title,
+            platform: attemptData.problem_platform,
+            difficulty: attemptData.problem_difficulty,
+            topic: attemptData.problem_topic || null,
+          })
+          .select('id')
+          .maybeSingle();
+
+        if (insertError) {
+          if (insertError.code === '23505') { // Unique violation
+            const { data: retry } = await supabase
+              .from('problems')
+              .select('id')
+              .eq('user_id', user.id)
+              .eq('title_normalized', attemptData.problem_title.toLowerCase().trim())
+              .eq('platform_normalized', attemptData.problem_platform.toLowerCase().trim())
+              .single();
+            problemId = retry?.id;
+          } else {
+            throw insertError;
+          }
+        } else if (newProb) {
+          problemId = newProb.id;
+        }
+      }
+
+      if (!problemId) throw new Error('Could not resolve problem ID');
 
       // 2. Insert attempt
       const { error: attemptError } = await supabase.from('problem_attempts').upsert({
         id: attemptData.id,
         user_id: user.id,
-        problem_id: problemData.id,
+        problem_id: problemId,
         study_session_id: attemptData.study_session_id,
         started_at: attemptData.started_at,
         ended_at: attemptData.ended_at,
@@ -212,8 +256,8 @@ export function useProblemTimer(): UseProblemTimerReturn {
       clearProblemTimerState();
       setTimerState(null);
       setDisplaySeconds(0);
-    } catch (err) {
-      console.error('Failed to save problem attempt:', err);
+    } catch (err: any) {
+      console.error('Failed to save problem attempt:', err?.message || JSON.stringify(err));
       setSaveError('Failed to save attempt. It will sync when you reconnect.');
       addPendingAttempt(attemptData);
       clearProblemTimerState();
