@@ -23,10 +23,13 @@ export function usePendingSync() {
     // 1. Sync Study Sessions
     for (const session of pendingSessions) {
       try {
+        let finalSubjectId = session.subject_id;
+        
+        // Upsert attempt 1
         const { error } = await supabase.from('study_sessions').upsert({
           id: session.id,
           user_id: user.id,
-          subject_id: session.subject_id,
+          subject_id: finalSubjectId,
           started_at: session.started_at,
           ended_at: session.ended_at,
           duration_seconds: session.duration_seconds,
@@ -35,11 +38,49 @@ export function usePendingSync() {
           status: session.status,
         }, { onConflict: 'id' });
 
-        if (!error) {
+        if (error) {
+          // If foreign key violation, it might be due to a normalized subject that got merged/deleted.
+          if (error.code === '23503' && session.subject_name) {
+            const normalizedName = session.subject_name.toLowerCase().trim();
+            const { data: canonicalSubject } = await supabase
+              .from('subjects')
+              .select('id')
+              .eq('user_id', user.id)
+              .eq('name_normalized', normalizedName)
+              .maybeSingle();
+
+            if (canonicalSubject) {
+              finalSubjectId = canonicalSubject.id;
+              // Retry with canonical subject
+              const { error: retryError } = await supabase.from('study_sessions').upsert({
+                id: session.id,
+                user_id: user.id,
+                subject_id: finalSubjectId,
+                started_at: session.started_at,
+                ended_at: session.ended_at,
+                duration_seconds: session.duration_seconds,
+                mode: session.mode,
+                planned_duration_seconds: session.planned_duration_seconds,
+                status: session.status,
+              }, { onConflict: 'id' });
+
+              if (!retryError) {
+                removePendingSession(session.id);
+              } else {
+                console.error('Failed to sync session on retry:', retryError);
+              }
+            } else {
+              console.error('Subject missing and could not be resolved canonically');
+            }
+          } else {
+            console.error('Failed to sync session:', error);
+          }
+        } else {
           removePendingSession(session.id);
         }
-      } catch {
+      } catch (err) {
         // Will retry next time
+        console.error('Sync error:', err);
       }
     }
 

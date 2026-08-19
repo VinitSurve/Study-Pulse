@@ -93,10 +93,11 @@ export function CompleteProblem({ onClose }: CompleteProblemProps) {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                  <label htmlFor="time-complexity" className="block text-sm font-medium text-text-secondary mb-1.5">
                     Time Complexity
                   </label>
                   <input
+                    id="time-complexity"
                     type="text"
                     value={timeComplexity}
                     onChange={(e) => setTimeComplexity(e.target.value)}
@@ -105,10 +106,11 @@ export function CompleteProblem({ onClose }: CompleteProblemProps) {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                  <label htmlFor="space-complexity" className="block text-sm font-medium text-text-secondary mb-1.5">
                     Space Complexity
                   </label>
                   <input
+                    id="space-complexity"
                     type="text"
                     value={spaceComplexity}
                     onChange={(e) => setSpaceComplexity(e.target.value)}
@@ -119,8 +121,9 @@ export function CompleteProblem({ onClose }: CompleteProblemProps) {
               </div>
 
               <div className="flex gap-4 p-4 bg-bg-surface border border-border rounded-xl">
-                <label className="flex items-center gap-2 text-sm font-medium text-text-primary cursor-pointer">
+                <label htmlFor="hint-used" className="flex items-center gap-2 text-sm font-medium text-text-primary cursor-pointer">
                   <input 
+                    id="hint-used"
                     type="checkbox" 
                     checked={hintUsed} 
                     onChange={(e) => setHintUsed(e.target.checked)} 
@@ -128,8 +131,9 @@ export function CompleteProblem({ onClose }: CompleteProblemProps) {
                   />
                   Used Hint
                 </label>
-                <label className="flex items-center gap-2 text-sm font-medium text-text-primary cursor-pointer">
+                <label htmlFor="editorial-used" className="flex items-center gap-2 text-sm font-medium text-text-primary cursor-pointer">
                   <input 
+                    id="editorial-used"
                     type="checkbox" 
                     checked={editorialUsed} 
                     onChange={(e) => setEditorialUsed(e.target.checked)} 
@@ -140,10 +144,11 @@ export function CompleteProblem({ onClose }: CompleteProblemProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                <label htmlFor="problem-notes" className="block text-sm font-medium text-text-secondary mb-1.5">
                   Notes
                 </label>
                 <textarea
+                  id="problem-notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="What did you learn?"

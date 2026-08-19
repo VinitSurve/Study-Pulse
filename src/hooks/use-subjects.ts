@@ -37,10 +37,11 @@ export function useSubjects() {
   const createSubject = useCallback(async (name: string): Promise<Subject | null> => {
     const trimmed = name.trim();
     if (!trimmed) return null;
+    const normalizedName = trimmed.toLowerCase();
 
-    // Check for duplicate locally first
+    // Check for duplicate locally first using normalized name
     const existing = subjects.find(
-      s => s.name.toLowerCase() === trimmed.toLowerCase()
+      s => s.name.toLowerCase() === normalizedName
     );
     if (existing) return existing;
 
@@ -53,16 +54,18 @@ export function useSubjects() {
         .from('subjects')
         .insert({ user_id: user.id, name: trimmed })
         .select()
-        .single();
+        .maybeSingle();
 
       if (insertError) {
-        // Handle unique constraint violation
+        // Handle unique constraint violation (our new unique_user_subject_normalized)
         if (insertError.code === '23505') {
           const { data: existingData } = await supabase
             .from('subjects')
             .select('*')
-            .eq('name', trimmed)
+            .eq('user_id', user.id)
+            .eq('name_normalized', normalizedName)
             .single();
+            
           const existingSubject = existingData as Subject | null;
           if (existingSubject) {
             setSubjects(prev => {
@@ -89,5 +92,9 @@ export function useSubjects() {
     }
   }, [supabase, subjects]);
 
-  return { subjects, loading, error, createSubject, refetch: fetchSubjects };
+  const ensureCanonicalDSASubject = useCallback(async (): Promise<Subject | null> => {
+    return await createSubject('DSA');
+  }, [createSubject]);
+
+  return { subjects, loading, error, createSubject, ensureCanonicalDSASubject, refetch: fetchSubjects };
 }

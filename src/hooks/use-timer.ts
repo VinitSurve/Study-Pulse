@@ -58,6 +58,7 @@ export function useTimer(): UseTimerReturn {
       id: state.id,
       user_id: '', // Will be set from auth
       subject_id: state.subjectId,
+      subject_name: state.subjectName,
       started_at: new Date(state.startedAt).toISOString(),
       ended_at: endedAt,
       duration_seconds: durationSeconds,

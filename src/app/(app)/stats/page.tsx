@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { formatDuration, getLocalDayStart, getLocalDayEnd, getWeekStart, getMonthStart } from '@/lib/utils';
 import type { StudySessionWithSubject } from '@/types';
+import Link from 'next/link';
 
 type Period = 'today' | 'week' | 'month' | 'all';
 

@@ -26,6 +26,7 @@ export interface PendingSession {
   id: string;
   user_id: string;
   subject_id: string;
+  subject_name?: string;    // Added for safe reconciliation
   started_at: string;       // ISO timestamp
   ended_at: string;         // ISO timestamp
   duration_seconds: number;

@@ -71,8 +71,8 @@ export function BottomNav() {
     <>
       {/* Active Problem Timer mini bar (displays above Study Timer if both exist) */}
       {hasActiveProblem && pathname !== '/timer' && (
-        <button
-          onClick={() => window.dispatchEvent(new Event('open_problem_timer'))}
+        <Link
+          href="/timer"
           className={`fixed left-3 right-3 z-40 bg-bg-surface border border-accent/30 rounded-2xl px-4 py-3 flex items-center justify-between active:scale-[0.98] transition-all safe-bottom ${
             hasActiveTimer ? 'bottom-[126px]' : 'bottom-[68px]'
           }`}
@@ -86,7 +86,7 @@ export function BottomNav() {
           <span className="shrink-0 font-mono text-sm font-semibold text-accent tabular-nums">
             {formatTimerDisplay(problemSeconds)}
           </span>
-        </button>
+        </Link>
       )}
 
       {/* Active Study Timer mini bar */}

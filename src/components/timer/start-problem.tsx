@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useProblemTimerContext } from '@/components/providers/problem-timer-provider';
 import { useTimerContext } from '@/components/providers/timer-provider';
+import { useSubjects } from '@/hooks/use-subjects';
 
 interface StartProblemProps {
   onClose: () => void;
@@ -17,6 +18,7 @@ export function StartProblem({ onClose }: StartProblemProps) {
   
   const { start } = useProblemTimerContext();
   const { timerState: studyTimerState } = useTimerContext();
+  const { ensureCanonicalDSASubject } = useSubjects();
 
   const finalPlatform = platformOption === 'Other' ? customPlatform : platformOption;
 
@@ -32,6 +34,11 @@ export function StartProblem({ onClose }: StartProblemProps) {
       topic.trim(),
       studyTimerState?.id || null
     );
+
+    // Fire-and-forget: ensure the canonical DSA subject exists in the background
+    // so that the analytics/history pages will have "DSA" as a valid subject entity
+    // for all these problem attempts.
+    void ensureCanonicalDSASubject();
 
     // Open problem timer
     window.dispatchEvent(new Event('open_problem_timer'));
@@ -54,10 +61,11 @@ export function StartProblem({ onClose }: StartProblemProps) {
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1.5">
+              <label htmlFor="problem-title" className="block text-sm font-medium text-text-secondary mb-1.5">
                 Problem Title
               </label>
               <input
+                id="problem-title"
                 type="text"
                 autoFocus
                 required
@@ -69,11 +77,12 @@ export function StartProblem({ onClose }: StartProblemProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1.5">
+              <label htmlFor="problem-platform" className="block text-sm font-medium text-text-secondary mb-1.5">
                 Platform
               </label>
               <div className="space-y-2">
                 <select
+                  id="problem-platform"
                   value={platformOption}
                   onChange={(e) => setPlatformOption(e.target.value)}
                   className="w-full bg-bg-surface border border-border rounded-xl px-4 py-3 text-text-primary focus:outline-none focus:border-accent transition-colors appearance-none"
@@ -94,6 +103,7 @@ export function StartProblem({ onClose }: StartProblemProps) {
                     required
                     value={customPlatform}
                     onChange={(e) => setCustomPlatform(e.target.value)}
+                    aria-label="Custom platform name"
                     placeholder="Enter platform name"
                     className="w-full bg-bg-surface border border-border rounded-xl px-4 py-3 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent transition-colors animate-in fade-in slide-in-from-top-2"
                   />
@@ -103,10 +113,11 @@ export function StartProblem({ onClose }: StartProblemProps) {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                <label htmlFor="problem-difficulty" className="block text-sm font-medium text-text-secondary mb-1.5">
                   Difficulty
                 </label>
                 <select
+                  id="problem-difficulty"
                   value={difficulty}
                   onChange={(e) => setDifficulty(e.target.value)}
                   className="w-full bg-bg-surface border border-border rounded-xl px-4 py-3 text-text-primary focus:outline-none focus:border-accent transition-colors appearance-none"
@@ -118,10 +129,11 @@ export function StartProblem({ onClose }: StartProblemProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                <label htmlFor="problem-topic" className="block text-sm font-medium text-text-secondary mb-1.5">
                   Topic (Optional)
                 </label>
                 <input
+                  id="problem-topic"
                   type="text"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}

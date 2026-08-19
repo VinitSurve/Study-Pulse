@@ -19,14 +19,11 @@ function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-import { ProblemTimerOverlay } from '@/components/timer/problem-timer-overlay';
-
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <TimerProvider>
       <ProblemTimerProvider>
         <AppShell>{children}</AppShell>
-        <ProblemTimerOverlay />
       </ProblemTimerProvider>
     </TimerProvider>
   );
