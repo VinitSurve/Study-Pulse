@@ -11,6 +11,28 @@ interface ExecuteCommandParams {
   payload?: any;
 }
 
+async function broadcastState(supabase: any, userId: string, data: any) {
+  const channel = supabase.channel(`timer:${userId}`);
+  return new Promise((resolve) => {
+    channel.subscribe((status: string) => {
+      if (status === 'SUBSCRIBED') {
+        channel.send({
+          type: 'broadcast',
+          event: 'timer_state_changed',
+          payload: data
+        }).then(() => {
+          supabase.removeChannel(channel);
+          resolve(true);
+        }).catch(() => resolve(false));
+      } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+        resolve(false);
+      }
+    });
+    // Fallback timeout
+    setTimeout(() => resolve(false), 2000);
+  });
+}
+
 export async function executeTimerCommand({
   userId,
   timerType,
@@ -141,13 +163,7 @@ export async function executeTimerCommand({
     }
     
     // Broadcast the update via Realtime from the server
-    const channel = supabase.channel(`timer:${userId}`);
-    await channel.send({
-      type: 'broadcast',
-      event: 'timer_state_changed',
-      payload: insertedData
-    });
-    supabase.removeChannel(channel);
+    await broadcastState(supabase, userId, insertedData);
     
     return insertedData as RealtimeTimerState;
   } else {
@@ -172,13 +188,7 @@ export async function executeTimerCommand({
     }
     
     // Broadcast the update via Realtime from the server
-    const channel = supabase.channel(`timer:${userId}`);
-    await channel.send({
-      type: 'broadcast',
-      event: 'timer_state_changed',
-      payload: updatedData
-    });
-    supabase.removeChannel(channel);
+    await broadcastState(supabase, userId, updatedData);
 
     return updatedData as RealtimeTimerState;
   }
