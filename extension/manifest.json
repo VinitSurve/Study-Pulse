@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "StudyPulse Companion",
+  "version": "0.1.0",
+  "description": "Companion extension for StudyPulse DSA Timer & AI Coach",
+  "action": {
+    "default_title": "Open StudyPulse Sidepanel"
+  },
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.leetcode.com/*",
+    "http://localhost:3000/*",
+    "https://*.studypulse.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.leetcode.com/*", "http://localhost:3000/mock/leetcode*"],
+      "js": ["src/content/index.ts"]
+    },
+    {
+      "matches": ["http://localhost:3000/*", "https://*.studypulse.com/*"],
+      "js": ["src/content/pwa-bridge.ts"]
+    }
+  ],
+  "side_panel": {
+    "default_path": "index.html"
+  }
+}

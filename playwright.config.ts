@@ -14,16 +14,22 @@ export default defineConfig({
   },
   projects: [
     {
+      name: 'setup',
+      testMatch: /.*\.setup\.ts/,
+    },
+    {
       name: 'Mobile',
       use: { 
         ...devices['iPhone 13'], // 390x844
       },
+      dependencies: ['setup'],
     },
     {
       name: 'Tablet',
       use: { 
         ...devices['iPad Mini'], // 768x1024
       },
+      dependencies: ['setup'],
     },
     {
       name: 'Desktop',
@@ -31,6 +37,7 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         viewport: { width: 1440, height: 900 },
       },
+      dependencies: ['setup'],
     },
   ],
   webServer: {

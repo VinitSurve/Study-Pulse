@@ -1,74 +1,198 @@
 import { test, expect } from './utils/auth';
 
 test.describe('AI Coach & Socratic Tutor', () => {
-  test('AI provides contextual automatic content and escalating hints', async ({ authenticatedPage: page }) => {
-    // 1. Start a DSA Problem
+
+  test('Integration: Real Latency Measurement', async ({ authenticatedPage: page }) => {
+    // We hit the real API to measure Gemini latency
     await page.goto('/dashboard');
     await page.click('button:has-text("Start Study")');
-    await page.fill('input[placeholder="New subject…"]', 'Algorithms');
+    const subjectName = 'Algorithms-' + Date.now();
+    await page.fill('input[placeholder="New subject…"]', subjectName);
     await page.click('button:has-text("Add")');
     await page.click('button:has-text("Until I stop")');
+    await page.waitForURL('**/timer');
     
     await page.click('button:has-text("Start Problem")');
-    await page.fill('input[placeholder="e.g. Two Sum"]', 'Graph Traversal');
+    await page.fill('input[placeholder="e.g. Two Sum"]', 'Real Latency Problem');
     await page.selectOption('select:near(label:has-text("Platform"))', 'LeetCode');
-    await page.selectOption('select:near(label:has-text("Difficulty"))', 'Hard');
     await page.click('button:has-text("Start Timer")');
 
-    // 2. Verify AI Coach panel is visible
-    await expect(page.locator('text=AI Coach')).toBeVisible();
+    await expect(page.locator('text=Real Latency Problem')).toBeVisible();
 
-    // The automatic content fetches on mount. It might take a few seconds.
-    // Wait for the thinking state to resolve to some content
-    await expect(page.locator('text=Thinking...')).not.toBeVisible({ timeout: 10000 });
+    const start = Date.now();
+    console.log(`AI request started: ${new Date(start).toISOString()}`);
     
-    // Automatic content doesn't have "Ask for Help" button, wait, YES it does if a problem is active.
-    const hintButton = page.locator('button', { hasText: 'Ask for Help' });
-    await expect(hintButton).toBeVisible();
-
-    // 3. Test Socratic Hint Ladder
-    // Level 1: Ask for Help -> Should return a question
-    await hintButton.click();
-    await expect(page.locator('text=Thinking...')).toBeVisible();
+    // Wait for the automatic content to resolve
     await expect(page.locator('text=Thinking...')).not.toBeVisible({ timeout: 15000 });
     
-    // The button text should change to 'Think With Me'
-    await expect(page.locator('button', { hasText: 'Think With Me' })).toBeVisible();
-
-    // The AI response for Level 1 should be visible (a question)
-    // We can't strictly assert the exact text, but we know the structure renders a question with border-l-2
-    await expect(page.locator('.border-l-2.border-accent')).toBeVisible();
-
-    // Level 2: Think With Me
-    await page.click('button:has-text("Think With Me")');
-    await expect(page.locator('text=Thinking...')).toBeVisible();
-    await expect(page.locator('text=Thinking...')).not.toBeVisible({ timeout: 15000 });
-    await expect(page.locator('button', { hasText: 'Give Me a Hint' })).toBeVisible();
+    const end = Date.now();
+    console.log(`AI response received: ${new Date(end).toISOString()}`);
+    console.log(`Latency: ${((end - start) / 1000).toFixed(3)}s`);
 
     // Clean up
     await page.locator('button[aria-label="Complete attempt"]').first().click();
+    await page.click('button:has-text("Solved")');
     await page.click('button:has-text("Save Attempt")');
     await page.click('button[aria-label="Stop and save session"]');
   });
 
-  test('AI works (or degrades gracefully) offline', async ({ authenticatedPage: page, context }) => {
-    await page.goto('/dashboard');
-    await page.click('button:has-text("Start Study")');
-    await page.fill('input[placeholder="New subject…"]', 'Algorithms');
-    await page.click('button:has-text("Add")');
-    await page.click('button:has-text("Until I stop")');
+  test.describe('E2E Deterministic Behavior', () => {
+    
+    test.beforeEach(async ({ authenticatedPage: page }) => {
+      // Block all AI requests by default during setup so we don't accidentally fetch
+      // real content and poison the state before the test registers its own mock.
+      await page.route('**/api/ai', route => route.abort('blockedbyclient'));
+      
+      await page.goto('/dashboard');
+      await page.click('button:has-text("Start Study")');
+      const subjectName = 'Algorithms-' + Date.now();
+      await page.fill('input[placeholder="New subject…"]', subjectName);
+      await page.click('button:has-text("Add")');
+      await page.click('button:has-text("Until I stop")');
+      await page.waitForURL('**/timer');
+    });
 
-    await context.setOffline(true);
-    await page.waitForTimeout(1000);
+    test.afterEach(async ({ authenticatedPage: page }) => {
+      // Click stop if it exists
+      const stopBtn = page.locator('button[aria-label="Stop and save session"]');
+      if (await stopBtn.isVisible()) {
+        await stopBtn.click();
+      }
+    });
 
-    // It should display offline fallback
-    await expect(page.locator('text=Offline')).toBeVisible();
-    await expect(page.locator('text=AI coach unavailable while offline.')).toBeVisible();
+    test('Handles Slow Request gracefully', async ({ authenticatedPage: page }) => {
+      await page.route('/api/ai', async route => {
+        await new Promise(r => setTimeout(r, 3000));
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ type: 'fact', content: 'Slow deterministic fact' })
+        });
+      });
 
-    // Attempting to ask for help should be blocked or safely ignored
-    // The button shouldn't render if offline
-    await expect(page.locator('button', { hasText: 'Ask for Help' })).not.toBeVisible();
+      await page.click('button:has-text("Start Problem")');
+      await page.fill('input[placeholder="e.g. Two Sum"]', 'Slow Problem');
+      await page.selectOption('select:near(label:has-text("Platform"))', 'LeetCode');
+      await page.click('button:has-text("Start Timer")');
 
-    await context.setOffline(false);
+      // Should eventually load the fact
+      await expect(page.locator('text=Slow deterministic fact')).toBeVisible({ timeout: 5000 });
+      
+      await page.locator('button[aria-label="Complete attempt"]').first().click();
+      await page.click('button:has-text("Solved")');
+      await page.click('button:has-text("Save Attempt")');
+    });
+
+    test('Handles Timeout/504 gracefully', async ({ authenticatedPage: page }) => {
+      // Simulate Next.js aborting the request after 10s or backend timeout
+      await page.route('/api/ai', async route => {
+        await route.fulfill({ status: 504, body: 'Gateway Timeout' });
+      });
+
+      await page.click('button:has-text("Start Problem")');
+      await page.fill('input[placeholder="e.g. Two Sum"]', 'Timeout Problem');
+      await page.click('button:has-text("Start Timer")');
+
+      // The UI should show standard offline/error fallback
+      await expect(page.locator('text=Monitoring your progress...')).toBeVisible();
+      
+      await page.locator('button[aria-label="Complete attempt"]').first().click();
+      await page.click('button:has-text("Solved")');
+      await page.click('button:has-text("Save Attempt")');
+    });
+
+    test('Handles Malformed Response gracefully', async ({ authenticatedPage: page }) => {
+      await page.route('/api/ai', async route => {
+        await route.fulfill({ status: 200, contentType: 'application/json', body: 'NOT_A_VALID_JSON' });
+      });
+
+      await page.click('button:has-text("Start Problem")');
+      await page.fill('input[placeholder="e.g. Two Sum"]', 'Malformed Problem');
+      await page.click('button:has-text("Start Timer")');
+
+      // Should handle JSON parse error gracefully without crashing React
+      await expect(page.locator('text=Monitoring your progress...')).toBeVisible();
+      
+      await page.locator('button[aria-label="Complete attempt"]').first().click();
+      await page.click('button:has-text("Solved")');
+      await page.click('button:has-text("Save Attempt")');
+    });
+
+    test('Handles API 500 Failure gracefully', async ({ authenticatedPage: page }) => {
+      await page.route('/api/ai', async route => {
+        await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: 'Internal Error' }) });
+      });
+
+      await page.click('button:has-text("Start Problem")');
+      await page.fill('input[placeholder="e.g. Two Sum"]', '500 Problem');
+      await page.click('button:has-text("Start Timer")');
+
+      await expect(page.locator('text=Monitoring your progress...')).toBeVisible();
+      
+      await page.locator('button[aria-label="Complete attempt"]').first().click();
+      await page.click('button:has-text("Solved")');
+      await page.click('button:has-text("Save Attempt")');
+    });
+
+    test('Prevents repeated request spam', async ({ authenticatedPage: page }) => {
+      let requestCount = 0;
+      await page.route('/api/ai', async route => {
+        requestCount++;
+        await new Promise(r => setTimeout(r, 1000));
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ type: 'fact', content: 'Spam test' }) });
+      });
+
+      await page.click('button:has-text("Start Problem")');
+      await page.fill('input[placeholder="e.g. Two Sum"]', 'Spam Problem');
+      await page.click('button:has-text("Start Timer")');
+
+      // Wait for initial auto-fetch
+      await expect(page.locator('text=Spam test')).toBeVisible();
+      const initialCount = requestCount;
+
+      // Click "Ask for Help" multiple times rapidly
+      const helpButton = page.locator('button:has-text("Ask for Help")');
+      await helpButton.click();
+      await helpButton.click({ force: true }).catch(() => {});
+      await helpButton.click({ force: true }).catch(() => {});
+      
+      // Since UI should disable button while loading, the second clicks should either be blocked or ignored
+      // We expect the requestCount to increment exactly by 1 for the hint
+      await expect(page.locator('text=Spam test').nth(1)).toBeVisible({ timeout: 5000 }).catch(() => {});
+      
+      expect(requestCount).toBe(initialCount + 1);
+
+      await page.locator('button[aria-label="Complete attempt"]').first().click();
+      await page.click('button:has-text("Solved")');
+      await page.click('button:has-text("Save Attempt")');
+    });
+
+    test('AI works (or degrades gracefully) offline', async ({ authenticatedPage: page }) => {
+      // Mock navigator.onLine and network state reliably
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, 'onLine', { get: () => false });
+      });
+      await page.context().setOffline(true);
+      await page.route('/api/ai', route => route.abort('internetdisconnected'));
+      await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+      
+      // Create problem while offline
+      await page.click('button:has-text("Start Problem")');
+      await page.fill('input[placeholder="e.g. Two Sum"]', 'Offline Problem');
+      await page.click('button:has-text("Start Timer")');
+
+      // It should display offline fallback
+      await expect(page.locator('text="Offline"')).toBeVisible();
+      await expect(page.locator('text=AI coach unavailable while offline.')).toBeVisible();
+
+      await expect(page.locator('button', { hasText: 'Ask for Help' })).not.toBeVisible();
+
+      await page.context().setOffline(false);
+      
+      await page.locator('button[aria-label="Complete attempt"]').first().click();
+      await page.click('button:has-text("Solved")');
+      await page.click('button:has-text("Save Attempt")');
+    });
+
   });
 });

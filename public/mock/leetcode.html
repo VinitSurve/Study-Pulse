@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Two Sum - LeetCode Mock</title>
+</head>
+<body>
+    <div class="flex items-start justify-between">
+        <h1 class="mr-2 text-label-1">1. Two Sum</h1>
+    </div>
+
+    <div data-track-load="description_content" class="elfjS">
+        <p>Given an array of integers <code>nums</code> and an integer <code>target</code>, return indices of the two numbers such that they add up to <code>target</code>.</p>
+        <p>You may assume that each input would have <strong>exactly one solution</strong>, and you may not use the same element twice.</p>
+        
+        <p><strong>Example 1:</strong></p>
+        <pre>
+<strong>Input:</strong> nums = [2,7,11,15], target = 9
+<strong>Output:</strong> [0,1]
+        </pre>
+
+        <p><strong>Constraints:</strong></p>
+        <ul>
+            <li><code>2 &lt;= nums.length &lt;= 10<sup>4</sup></code></li>
+            <li><code>-10<sup>9</sup> &lt;= nums[i] &lt;= 10<sup>9</sup></code></li>
+            <li><code>-10<sup>9</sup> &lt;= target &lt;= 10<sup>9</sup></code></li>
+        </ul>
+        
+        <!-- Malicious DOM elements to test sanitization -->
+        <script>alert('malicious')</script>
+        <div style="display:none">HIDDEN GARBAGE THAT SHOULD BE INCLUDED OR STRIPPED</div>
+    </div>
+
+    <div data-cy="lang-select">Python3</div>
+
+    <div class="view-lines">
+        <div class="view-line">class Solution:</div>
+        <div class="view-line">    def twoSum(self, nums: List[int], target: int) -> List[int]:</div>
+        <div class="view-line">        seen = {}</div>
+        <div class="view-line">        for i, num in enumerate(nums):</div>
+        <div class="view-line">            if target - num in seen:</div>
+        <div class="view-line">                return [seen[target - num], i]</div>
+        <div class="view-line">            seen[num] = i</div>
+        <div class="view-line">        return []</div>
+    </div>
+</body>
+</html>

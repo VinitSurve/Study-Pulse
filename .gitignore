@@ -50,3 +50,6 @@ next-env.d.ts
 /fix*.js
 /test-*.ts
 /*_REPORT.md
+/playwright/.auth/
+git_diff.txt  
+ 

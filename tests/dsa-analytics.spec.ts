@@ -2,28 +2,26 @@ import { test, expect } from './utils/auth';
 
 test.describe('DSA Analytics', () => {
   test('Deterministically calculates and separates platform analytics', async ({ authenticatedPage: page }) => {
-    // We need to inject deterministic data. We can do this by using the UI to create specific sessions.
+    test.setTimeout(60000); // 7 sequential UI attempts take > 30s
+    // 1. Start a generic study session ONCE
+    await page.goto('/dashboard');
+    await page.click('button:has-text("Start Study")');
+    const subjectName = 'Testing-' + Date.now();
+    await page.fill('input[placeholder="New subject…"]', subjectName);
+    await page.click('button:has-text("Add")');
+    await page.click('button:has-text("Until I stop")');
+    await page.waitForURL('**/timer');
     
     // Helper to create a DSA attempt
     const createAttempt = async (platform: string, problem: string, solved: boolean) => {
-      await page.goto('/timer');
+      // Ensure we are ready to start a problem (button is visible)
+      await expect(page.locator('button:has-text("Start Problem")')).toBeVisible();
       
-      // If no timer, start one to get access
-      const hasStartProblem = await page.locator('button:has-text("Start Problem")').isVisible();
-      if (!hasStartProblem) {
-        await page.goto('/dashboard');
-        await page.click('button:has-text("Start Study")');
-    await page.fill('input[placeholder="New subject…"]', 'Testing');
-    await page.click('button:has-text("Add")');
-    await page.click('button:has-text("Until I stop")');
-        await expect(page).toHaveURL(/\/timer/);
-      }
-
       await page.click('button:has-text("Start Problem")');
       await page.fill('input[placeholder="e.g. Two Sum"]', problem);
       await page.selectOption('select:near(label:has-text("Platform"))', platform === 'Other' ? 'Other' : platform);
       if (platform === 'Other') {
-        await page.fill('input[placeholder="Enter platform name"]', platform); // If it was custom
+        await page.fill('input[placeholder="Enter platform name"]', platform);
       }
       await page.selectOption('select:near(label:has-text("Difficulty"))', 'Easy');
       await page.click('button:has-text("Start Timer")');
@@ -36,11 +34,13 @@ test.describe('DSA Analytics', () => {
       if (solved) {
         await page.click('button:has-text("Solved")');
       } else {
-        await page.click('button:has-text("Failed")');
+        await page.click('button:has-text("Couldn\'t Solve")');
       }
 
       await page.click('button:has-text("Save Attempt")');
-      await page.waitForTimeout(500); // Wait for save
+      
+      // Wait for the drawer to close and the Start Problem button to reappear
+      await expect(page.locator('button:has-text("Start Problem")')).toBeVisible({ timeout: 10000 });
     };
 
     // Create LeetCode: 2 solved, 1 failed

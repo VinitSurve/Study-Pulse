@@ -8,16 +8,14 @@ test.describe('DSA Timer E2E', () => {
     // Click "Start Problem" button (which might be in the MiniBar or timer page)
     // Actually, on the dashboard without an active timer, there is no "Start Problem" directly, 
     // it's on the /timer page. Let's go to /timer directly.
-    await page.goto('/timer');
-
-    // Should redirect to dashboard if no timer is active at all.
     // Let's start a generic stopwatch timer first so we can access the Start Problem button
     await page.goto('/dashboard');
     await page.click('button:has-text("Start Study")');
-    await page.fill('input[placeholder="New subject…"]', 'Algorithms');
+    const subjectName = 'Algorithms-' + Date.now();
+    await page.fill('input[placeholder="New subject…"]', subjectName);
     await page.click('button:has-text("Add")');
     await page.click('button:has-text("Until I stop")');
-    await expect(page).toHaveURL(/\/timer/);
+    await page.waitForURL('**/timer');
 
     // 2. Start DSA Problem
     await page.click('button:has-text("Start Problem")');
