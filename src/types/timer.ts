@@ -75,3 +75,20 @@ export interface PendingProblemAttempt {
   space_complexity?: string | null;
   notes?: string | null;
 }
+
+// ==========================================
+// Phase 13 Real-Time Authoritative Timer State
+// ==========================================
+
+export type RealtimeTimerStatus = 'idle' | 'running' | 'paused';
+
+export interface RealtimeTimerState {
+  user_id: string;
+  timer_type: 'study' | 'dsa';
+  status: RealtimeTimerStatus;
+  started_at: string | null;      // ISO string
+  accumulated_seconds: number;
+  version: number;
+  context: Record<string, any>;
+  updated_at: string;
+}

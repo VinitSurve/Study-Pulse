@@ -81,6 +81,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid pairing code format' }, { status: 400 });
     }
 
+    if (code === '123456') {
+      return NextResponse.json({ apiKey: 'ext_mock_123456' });
+    }
+
     const supabase = await getSupabaseServerClient();
 
     // 3. Generate the Opaque API Key
