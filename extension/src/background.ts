@@ -53,7 +53,7 @@ async function authenticateAndSubscribe() {
 
     if (!res.ok) throw new Error(data.error || 'Failed to get realtime token');
 
-    const { token, supabaseUrl, supabaseAnonKey, expiresAt } = data;
+    const { token, userId, supabaseUrl, supabaseAnonKey, expiresAt } = data;
 
     if (!supabaseClient) {
       supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -61,16 +61,15 @@ async function authenticateAndSubscribe() {
       });
     }
 
-    // Authenticate with custom JWT
-    const { data: { user } } = await supabaseClient.auth.getUser(token);
-    if (!user) throw new Error('Invalid JWT: No user returned');
+    // Authenticate Realtime directly with custom JWT
+    supabaseClient.realtime.setAuth(token);
 
     // Subscribe to private channel
     if (realtimeChannel) {
       supabaseClient.removeChannel(realtimeChannel);
     }
     
-    realtimeChannel = supabaseClient.channel(`timer:${user.id}`);
+    realtimeChannel = supabaseClient.channel(`timer:${userId}`);
     
     realtimeChannel.on('broadcast', { event: 'timer_state_changed' }, (payload: any) => {
       const state = payload.payload;
