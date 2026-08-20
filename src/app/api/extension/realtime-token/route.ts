@@ -4,6 +4,7 @@ import crypto from 'crypto';
 
 // Simple JWT signer using Node crypto
 function signJWT(payload: any, secret: string): string {
+  // Simple JWT signer using Node crypto (triggers Vercel build)
   const header = { alg: 'HS256', typ: 'JWT' };
   const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64url');
   const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
