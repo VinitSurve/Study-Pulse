@@ -139,6 +139,16 @@ export async function executeTimerCommand({
       }
       throw new Error(`Failed to insert timer state: ${insertError.message}`);
     }
+    
+    // Broadcast the update via Realtime from the server
+    const channel = supabase.channel(`timer:${userId}`);
+    await channel.send({
+      type: 'broadcast',
+      event: 'timer_state_changed',
+      payload: insertedData
+    });
+    supabase.removeChannel(channel);
+    
     return insertedData as RealtimeTimerState;
   } else {
     // Update existing timer state with WHERE version = expectedVersion
@@ -160,6 +170,15 @@ export async function executeTimerCommand({
       }
       throw new Error(`Failed to update timer state: ${updateError.message}`);
     }
+    
+    // Broadcast the update via Realtime from the server
+    const channel = supabase.channel(`timer:${userId}`);
+    await channel.send({
+      type: 'broadcast',
+      event: 'timer_state_changed',
+      payload: updatedData
+    });
+    supabase.removeChannel(channel);
 
     return updatedData as RealtimeTimerState;
   }

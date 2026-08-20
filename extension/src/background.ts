@@ -82,9 +82,29 @@ async function authenticateAndSubscribe() {
         } as any;
         broadcastStateToSidepanel();
       }
-    }).subscribe((status: string) => {
+    }).subscribe(async (status: string) => {
       if (status === 'SUBSCRIBED') {
         isRealtimeReady = true;
+        // Fetch initial state so the sidepanel isn't stuck on idle
+        try {
+          const stateRes = await fetch('http://localhost:3000/api/timer/state?type=dsa', {
+            headers: { 'Authorization': `Bearer ${apiKey}` }
+          });
+          if (stateRes.ok) {
+            const data = await stateRes.json();
+            if (data.state) {
+              const state = data.state;
+              currentTimerState.dsa = {
+                status: state.status === 'idle' ? 'completed' : state.status,
+                startTime: state.started_at ? new Date(state.started_at).getTime() : null,
+                accumulatedTime: state.accumulated_seconds || 0
+              } as any;
+              broadcastStateToSidepanel();
+            }
+          }
+        } catch (err) {
+          console.error('Failed to fetch initial state:', err);
+        }
       }
     });
 
